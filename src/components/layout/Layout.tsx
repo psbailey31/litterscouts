@@ -31,7 +31,12 @@ export function Layout({ children }: LayoutProps) {
             <div>
               <h3 className="text-white font-semibold mb-2">Contact</h3>
               <p className="text-sm">Questions or feedback?</p>
-              <a href="mailto:hello@litterscouts.uk" className="text-sm text-blue-400 hover:text-blue-300 transition-colors">hello@litterscouts.uk</a>
+              <button
+                onClick={() => window.location.href = ['ma','ilto:','hello','@litter','scouts.ps','bailey.uk'].join('')}
+                className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                hello&#64;litterscouts&#46;psbailey&#46;uk
+              </button>
             </div>
           </div>
           <div className="border-t border-gray-700 mt-8 pt-4 text-center text-sm">
