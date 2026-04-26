@@ -1,0 +1,236 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email              String?             @unique
+  passwordHash       String?             @map("password_hash")
+  username           String              @unique
+  createdAt          DateTime?           @default(now()) @map("created_at")
+  updatedAt          DateTime?           @default(now()) @updatedAt @map("updated_at")
+  firstName          String?             @map("first_name")
+  lastName           String?             @map("last_name")
+  avatarUrl          String?             @map("avatar_url")
+  impactScore        Int?                @default(0) @map("impact_score")
+  notificationEmail  Boolean?            @default(true) @map("notification_email")
+  notificationInApp  Boolean?            @default(true) @map("notification_in_app")
+  areasOfInterest    Json?               @map("areas_of_interest")
+  clerkId            String?             @unique @map("clerk_id")
+  eventRegistrations EventRegistration[]
+  organizedEvents    Event[]             @relation("EventOrganizer")
+  reports            Report[]
+  cleanedReports     Report[]            @relation("CleanedByUser")
+  verifications      Verification[]
+  notifications      Notification[]
+
+  @@index([clerkId])
+  @@index([email])
+  @@index([username])
+  @@map("users")
+}
+
+model Report {
+  id                    String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String                       @map("user_id") @db.Uuid
+  latitude              Decimal                      @db.Decimal(10, 8)
+  longitude             Decimal                      @db.Decimal(11, 8)
+  locationSource        ReportLocationSource         @map("location_source")
+  photoUrls             Json                         @map("photo_urls")
+  photoTimestamp        DateTime?                    @map("photo_timestamp")
+  litterType            ReportLitterType             @map("litter_type")
+  quantity              ReportQuantity
+  description           String?
+  createdAt             DateTime?                    @default(now()) @map("created_at")
+  updatedAt             DateTime?                    @default(now()) @updatedAt @map("updated_at")
+  submittedAt           DateTime?                    @default(now()) @map("submitted_at")
+  verificationStatus    ReportVerificationStatus?    @default(pending) @map("verification_status")
+  cleanedAt             DateTime?                    @map("cleaned_at")
+  cleanedByUserId       String?                      @map("cleaned_by_user_id") @db.Uuid
+  environmentalConcerns EnvironmentalConcern[]
+  user                  User                         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cleanedByUser         User?                        @relation("CleanedByUser", fields: [cleanedByUserId], references: [id], onDelete: SetNull)
+  verifications         Verification[]
+
+  @@index([createdAt])
+  @@index([cleanedAt])
+  @@index([latitude, longitude])
+  @@index([litterType])
+  @@index([userId])
+  @@index([cleanedByUserId])
+  @@map("reports")
+}
+
+model Event {
+  id               String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizerId      String               @map("organizer_id") @db.Uuid
+  title            String
+  description      String
+  latitude         Decimal              @db.Decimal(10, 8)
+  longitude        Decimal              @db.Decimal(11, 8)
+  locationName     String               @map("location_name")
+  scheduledDate    DateTime             @map("scheduled_date")
+  duration         Int
+  status           EventStatus?         @default(upcoming)
+  participantCount Int?                 @default(0) @map("participant_count")
+  litterCollected  Decimal?             @map("litter_collected") @db.Decimal(10, 2)
+  photos           Json?
+  equipmentProvided Boolean?            @default(false) @map("equipment_provided")
+  requiredItems    Json?                @map("required_items")
+  createdAt        DateTime?            @default(now()) @map("created_at")
+  updatedAt        DateTime?            @default(now()) @updatedAt @map("updated_at")
+  registrations    EventRegistration[]
+  organizer        User                 @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledDate])
+  @@index([status])
+  @@index([organizerId])
+  @@map("events")
+}
+
+model EventRegistration {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  eventId          String    @map("event_id") @db.Uuid
+  registeredAt     DateTime? @default(now()) @map("registered_at")
+  attended         Boolean?  @default(false)
+  litterCollected  Decimal?  @map("litter_collected") @db.Decimal(10, 2)
+  contributionNote String?   @map("contribution_note")
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event            Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@index([eventId])
+  @@map("event_registrations")
+}
+
+model Verification {
+  id               String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reportId         String                @map("report_id") @db.Uuid
+  userId           String                @map("user_id") @db.Uuid
+  verificationType VerificationType      @map("verification_type")
+  comment          String?
+  createdAt        DateTime?             @default(now()) @map("created_at")
+  report           Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, userId])
+  @@index([userId])
+  @@map("verifications")
+}
+
+model EnvironmentalConcern {
+  id          String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reportId    String                    @map("report_id") @db.Uuid
+  concernType String                    @map("concern_type")
+  severity    EnvironmentalSeverity
+  description String
+  createdAt   DateTime?                 @default(now()) @map("created_at")
+  report      Report                    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([concernType])
+  @@index([reportId])
+  @@map("environmental_concerns")
+}
+
+model Hotspot {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  latitude       Decimal   @db.Decimal(10, 8)
+  longitude      Decimal   @db.Decimal(11, 8)
+  radius         Decimal   @db.Decimal(10, 2)
+  reportCount    Int       @map("report_count")
+  severityScore  Decimal   @map("severity_score") @db.Decimal(5, 2)
+  lastReportDate DateTime  @map("last_report_date")
+  calculatedAt   DateTime? @default(now()) @map("calculated_at")
+
+  @@index([severityScore])
+  @@map("hotspots")
+}
+
+model Notification {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String              @map("user_id") @db.Uuid
+  type        NotificationType
+  title       String
+  message     String
+  relatedId   String?             @map("related_id") @db.Uuid
+  relatedType NotificationRelatedType? @map("related_type")
+  latitude    Decimal?            @db.Decimal(10, 8)
+  longitude   Decimal?            @db.Decimal(11, 8)
+  read        Boolean             @default(false)
+  emailSent   Boolean             @default(false) @map("email_sent")
+  createdAt   DateTime?           @default(now()) @map("created_at")
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([read])
+  @@index([type])
+  @@index([latitude, longitude])
+  @@map("notifications")
+}
+
+// Enums — PostgreSQL native enums
+enum VerificationType {
+  verify
+  dispute
+}
+
+enum EnvironmentalSeverity {
+  low
+  medium
+  high
+  critical
+}
+
+enum ReportLocationSource {
+  exif
+  gps
+  manual
+}
+
+enum ReportLitterType {
+  plastic
+  metal
+  glass
+  organic
+  hazardous
+  other
+}
+
+enum ReportQuantity {
+  minimal
+  moderate
+  significant
+  severe
+}
+
+enum EventStatus {
+  upcoming
+  completed
+  cancelled
+}
+
+enum ReportVerificationStatus {
+  pending
+  verified
+  disputed
+}
+
+enum NotificationType {
+  new_report
+  new_event
+  event_reminder
+  report_verified
+  report_disputed
+}
+
+enum NotificationRelatedType {
+  report
+  event
+}

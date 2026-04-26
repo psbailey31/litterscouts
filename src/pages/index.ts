@@ -1,0 +1,12 @@
+export { HomePage } from './HomePage';
+export { MapPage } from './MapPage';
+export { ReportFormPage } from './ReportFormPage';
+export { EventsPage } from './EventsPage';
+export { AnalyticsPage } from './AnalyticsPage';
+export { PhotoUploadDemo } from './PhotoUploadDemo';
+export { default as LocationSelectorDemo } from './LocationSelectorDemo';
+export { ReportDetailDemo } from './ReportDetailDemo';
+export { WhyCleanPage } from './WhyCleanPage';
+export { UserProfilePage } from './UserProfilePage';
+export { EnvironmentalDataDemo } from './EnvironmentalDataDemo';
+export { PrintableQRCodePage } from './PrintableQRCodePage';
