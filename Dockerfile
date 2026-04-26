@@ -12,6 +12,7 @@ RUN echo "VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY" > .env && \
 
 FROM node:20-alpine AS backend
 WORKDIR /app
+RUN apk add --no-cache openssl
 COPY server/package*.json ./
 COPY server/prisma ./prisma/
 RUN npm ci
@@ -22,6 +23,7 @@ RUN npm run build
 
 FROM node:20-alpine
 WORKDIR /app
+RUN apk add --no-cache openssl
 RUN addgroup -S app && adduser -S app -G app
 COPY --from=backend /app/dist ./dist
 COPY --from=backend /app/node_modules ./node_modules
