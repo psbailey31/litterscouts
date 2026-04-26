@@ -19,8 +19,9 @@ const PORT = process.env.PORT || 3005;
 
 // Middleware
 app.use(helmet({
-  crossOriginResourcePolicy: false, // Disable to allow images to be loaded from different origin
+  crossOriginResourcePolicy: false,
   contentSecurityPolicy: false,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 app.use(cors({
   origin: [
