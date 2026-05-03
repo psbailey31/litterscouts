@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { clerkClient } from '@clerk/clerk-sdk-node';
+import prisma from '../config/database';
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -39,8 +40,19 @@ export const requireAuth = async (
       });
     }
 
-    // Attach user ID to request (sub is the user ID in JWT)
-    req.userId = payload.sub;
+    // Resolve Clerk ID to internal UUID
+    const user = await prisma.user.findUnique({ where: { clerkId: payload.sub } });
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          code: 'USER_NOT_FOUND',
+          message: 'User not found',
+          timestamp: new Date().toISOString(),
+        },
+      });
+    }
+
+    req.userId = user.id;
     
     next();
   } catch (error) {
