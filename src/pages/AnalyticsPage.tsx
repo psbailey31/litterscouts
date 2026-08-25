@@ -81,45 +81,10 @@ export function AnalyticsPage() {
       setLitterTypeData(litterTypes);
       setQuantityData(quantities);
     } catch (err) {
-      // If API is not available yet, show mock data for development
-      console.warn('Chart data API not available, using mock data:', err);
-      
-      // Generate mock time series data
-      const mockTimeSeries: TimeSeriesDataPoint[] = [];
-      const daysDiff = Math.ceil((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24));
-      const dataPoints = Math.min(daysDiff, 30); // Max 30 data points
-      
-      for (let i = 0; i < dataPoints; i++) {
-        const date = new Date(dateRange.start);
-        date.setDate(date.getDate() + Math.floor(i * daysDiff / dataPoints));
-        mockTimeSeries.push({
-          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          reportCount: Math.floor(Math.random() * 20) + 5,
-          eventCount: Math.floor(Math.random() * 5),
-          litterCollected: Math.floor(Math.random() * 50) + 10,
-        });
-      }
-      setTimeSeriesData(mockTimeSeries);
-
-      // Generate mock litter type distribution
-      const mockLitterTypes: LitterTypeDistribution[] = [
-        { type: 'plastic', count: 45 },
-        { type: 'metal', count: 15 },
-        { type: 'glass', count: 12 },
-        { type: 'organic', count: 10 },
-        { type: 'hazardous', count: 8 },
-        { type: 'other', count: 10 },
-      ];
-      setLitterTypeData(mockLitterTypes);
-
-      // Generate mock quantity aggregation
-      const mockQuantities: QuantityAggregation[] = [
-        { level: 'minimal', count: 30 },
-        { level: 'moderate', count: 40 },
-        { level: 'significant', count: 20 },
-        { level: 'severe', count: 10 },
-      ];
-      setQuantityData(mockQuantities);
+      console.warn('Chart data API error:', err);
+      setTimeSeriesData([]);
+      setLitterTypeData([]);
+      setQuantityData([]);
     } finally {
       setChartsLoading(false);
     }
@@ -264,6 +229,15 @@ export function AnalyticsPage() {
       )}
 
       {/* Data Visualizations */}
+      {!loading && summary && summary.totalReports === 0 && summary.totalEvents === 0 ? (
+        <div className="mt-8 bg-white rounded-lg shadow p-12 text-center">
+          <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No data yet</h3>
+          <p className="text-gray-500">Analytics will appear here once reports and events are submitted.</p>
+        </div>
+      ) : (
       <div className="mt-8 space-y-6">
         {/* Time Series Chart */}
         <TimeSeriesChart data={timeSeriesData} loading={chartsLoading} />
@@ -273,7 +247,8 @@ export function AnalyticsPage() {
           <LitterTypeChart data={litterTypeData} loading={chartsLoading} />
           <QuantityChart data={quantityData} loading={chartsLoading} />
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

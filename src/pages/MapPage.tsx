@@ -64,8 +64,8 @@ export function MapPage() {
         setReports(data);
       } catch (error) {
         console.error('Failed to fetch reports:', error);
-        // Fall back to sample data on error
-        setReports(sampleReports);
+        // Fall back to empty on error
+        setReports([]);
       } finally {
         setIsLoadingReports(false);
       }
@@ -86,8 +86,8 @@ export function MapPage() {
         setEvents(activeEvents);
       } catch (error) {
         console.error('Failed to fetch events:', error);
-        // Fall back to sample data on error (also filter cancelled)
-        setEvents(sampleEvents.filter(event => event.status !== 'cancelled'));
+        // Fall back to empty on error
+        setEvents([]);
       } finally {
         setIsLoadingEvents(false);
       }
