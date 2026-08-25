@@ -72,14 +72,22 @@ export async function findOrCreateUser(db: D1Database, clerkId: string, clerkSec
   if (existing) return existing.id;
 
   // Fetch from Clerk API
-  const clerkRes = await fetch(`https://api.clerk.com/v1/users/${clerkId}`, {
+  const clerkRes = await fetch(`https://api.clerk.dev/v1/users/${clerkId}`, {
     headers: { Authorization: `Bearer ${clerkSecretKey}` },
   });
 
-  if (!clerkRes.ok) throw new Error('Failed to fetch user from Clerk');
+  const id = crypto.randomUUID();
+
+  if (!clerkRes.ok) {
+    // If Clerk API fails, create user with minimal info
+    const username = `user${clerkId.substring(5, 13)}`;
+    await db.prepare(
+      'INSERT INTO users (id, clerk_id, username) VALUES (?, ?, ?)'
+    ).bind(id, clerkId, username).run();
+    return id;
+  }
 
   const clerkUser = await clerkRes.json() as any;
-  const id = crypto.randomUUID();
   const username = clerkUser.username || `user${clerkId.substring(5, 13)}`;
 
   await db.prepare(
@@ -89,9 +97,9 @@ export async function findOrCreateUser(db: D1Database, clerkId: string, clerkSec
     clerkId,
     clerkUser.email_addresses?.[0]?.email_address || null,
     username,
-    clerkUser.first_name,
-    clerkUser.last_name,
-    clerkUser.image_url
+    clerkUser.first_name || null,
+    clerkUser.last_name || null,
+    clerkUser.image_url || null
   ).run();
 
   return id;
