@@ -33,3 +33,6 @@ Thumbs.db
 # Dev files
 dev.log
 *.backup.*
+
+# Wrangler
+.wrangler

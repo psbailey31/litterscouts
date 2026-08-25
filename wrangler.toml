@@ -1,0 +1,26 @@
+name = "litterscouts"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "./dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "litterscouts"
+database_id = "b70ce56f-3f71-456b-9e19-ab169465caf1"
+
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "litterscouts-uploads"
+
+[vars]
+FRONTEND_URL = "https://litterscouts.psbailey.uk"
+FROM_EMAIL = "LitterScouts <noreply@psbailey.uk>"
+
+# Secrets (set via `wrangler secret put`):
+# CLERK_SECRET_KEY
+# CLERK_PUBLISHABLE_KEY
+# AHASEND_API_KEY
+# AHASEND_ACCOUNT_ID
+# OPENWEATHER_API_KEY
+
+[triggers]
+crons = ["*/5 * * * *", "*/10 * * * *", "0 2 * * *"]
