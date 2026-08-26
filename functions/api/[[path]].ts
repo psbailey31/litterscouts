@@ -19,6 +19,12 @@ app.use('*', cors({
   credentials: true,
 }));
 
+// Global error handler
+app.onError((err, c) => {
+  console.error('Unhandled error:', err.message, err.stack);
+  return c.json({ error: { code: 'INTERNAL_ERROR', message: err.message, timestamp: new Date().toISOString() } }, 500);
+});
+
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
