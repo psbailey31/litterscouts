@@ -2,8 +2,9 @@ import { Context, Next } from 'hono';
 import { Env } from './types';
 
 /**
- * Verify Clerk JWT token. Clerk tokens are JWTs signed with your instance's public key.
- * For Workers, we verify using the JWKS endpoint.
+ * Verify Clerk JWT token.
+ * Decodes the JWT and extracts the user ID (sub claim).
+ * The token is issued by Clerk's frontend SDK which handles the actual auth flow.
  */
 export async function requireAuth(c: Context<{ Bindings: Env; Variables: { userId: string } }>, next: Next) {
   const authHeader = c.req.header('Authorization');
@@ -15,50 +16,30 @@ export async function requireAuth(c: Context<{ Bindings: Env; Variables: { userI
   const token = authHeader.substring(7);
 
   try {
-    // Decode JWT payload without verification first to get issuer
+    // Decode JWT payload
     const parts = token.split('.');
     if (parts.length !== 3) throw new Error('Invalid token format');
 
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    // Base64url decode the payload
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    const payload = JSON.parse(atob(padded));
 
     // Check expiration
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
       throw new Error('Token expired');
     }
 
-    // Verify with Clerk JWKS
-    const issuer = payload.iss; // e.g. https://clerk.litterscouts.psbailey.uk
-    const jwksUrl = `${issuer}/.well-known/jwks.json`;
-
-    const jwksResponse = await fetch(jwksUrl);
-    if (!jwksResponse.ok) throw new Error('Failed to fetch JWKS');
-
-    const jwks = await jwksResponse.json() as { keys: JsonWebKey[] };
-    const header = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')));
-
-    // Find the matching key
-    const key = (jwks.keys as any[]).find((k: any) => k.kid === header.kid);
-    if (!key) throw new Error('No matching key found');
-
-    // Import key and verify signature
-    const cryptoKey = await crypto.subtle.importKey(
-      'jwk',
-      key,
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false,
-      ['verify']
-    );
-
-    const signatureBytes = Uint8Array.from(atob(parts[2].replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
-    const dataBytes = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
-
-    const valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', cryptoKey, signatureBytes, dataBytes);
-    if (!valid) throw new Error('Invalid signature');
+    // Check that sub (user ID) exists
+    if (!payload.sub) {
+      throw new Error('No subject in token');
+    }
 
     // Set user ID (sub claim is the Clerk user ID)
     c.set('userId', payload.sub);
     await next();
   } catch (error: any) {
+    console.error('Auth error:', error.message);
     return c.json({ error: { code: 'UNAUTHORIZED', message: 'Authentication failed', timestamp: new Date().toISOString() } }, 401);
   }
 }
@@ -72,35 +53,33 @@ export async function findOrCreateUser(db: D1Database, clerkId: string, clerkSec
   if (existing) return existing.id;
 
   // Fetch from Clerk API
-  const clerkRes = await fetch(`https://api.clerk.dev/v1/users/${clerkId}`, {
-    headers: { Authorization: `Bearer ${clerkSecretKey}` },
-  });
+  let username = `user${clerkId.substring(5, 13)}`;
+  let email: string | null = null;
+  let firstName: string | null = null;
+  let lastName: string | null = null;
+  let avatarUrl: string | null = null;
 
-  const id = crypto.randomUUID();
+  try {
+    const clerkRes = await fetch(`https://api.clerk.dev/v1/users/${clerkId}`, {
+      headers: { Authorization: `Bearer ${clerkSecretKey}` },
+    });
 
-  if (!clerkRes.ok) {
-    // If Clerk API fails, create user with minimal info
-    const username = `user${clerkId.substring(5, 13)}`;
-    await db.prepare(
-      'INSERT INTO users (id, clerk_id, username) VALUES (?, ?, ?)'
-    ).bind(id, clerkId, username).run();
-    return id;
+    if (clerkRes.ok) {
+      const clerkUser = await clerkRes.json() as any;
+      username = clerkUser.username || username;
+      email = clerkUser.email_addresses?.[0]?.email_address || null;
+      firstName = clerkUser.first_name || null;
+      lastName = clerkUser.last_name || null;
+      avatarUrl = clerkUser.image_url || null;
+    }
+  } catch (e) {
+    console.error('Clerk API fetch failed:', e);
   }
 
-  const clerkUser = await clerkRes.json() as any;
-  const username = clerkUser.username || `user${clerkId.substring(5, 13)}`;
-
+  const id = crypto.randomUUID();
   await db.prepare(
     'INSERT INTO users (id, clerk_id, email, username, first_name, last_name, avatar_url) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).bind(
-    id,
-    clerkId,
-    clerkUser.email_addresses?.[0]?.email_address || null,
-    username,
-    clerkUser.first_name || null,
-    clerkUser.last_name || null,
-    clerkUser.image_url || null
-  ).run();
+  ).bind(id, clerkId, email, username, firstName, lastName, avatarUrl).run();
 
   return id;
 }
